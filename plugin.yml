@@ -1,14 +1,12 @@
-name: Junit Annotate
-description: Annotates your build using JUnit XML reports
-author: https://github.com/buildkite
+name: Junit Step Annotate
+description: Annotates your build step using JUnit XML reports
+author: https://github.com/queimadus
 requirements:
   - docker
 configuration:
   properties:
-    artifacts:
-      type: string
-    job-uuid-file-pattern:
+    reports-selector:
       type: string
   required:
-    - artifacts
+    - reports-selector
   additionalProperties: false

@@ -9,8 +9,8 @@ junits_dir = ARGV[0]
 abort("Usage: annotate <junits-dir>") unless junits_dir
 abort("#{junits_dir} does not exist") unless Dir.exist?(junits_dir)
 
-job_pattern = ENV['BUILDKITE_PLUGIN_JUNIT_ANNOTATE_JOB_UUID_FILE_PATTERN']
-job_pattern = '-(.*).xml' if !job_pattern || job_pattern.empty?
+job_name = ENV["BUILDKITE_LABEL"]
+job_id = ENV["BUILDKITE_JOB_ID"]
 
 class Failure < Struct.new(:name, :classname, :body, :job, :type)
 end
@@ -22,7 +22,6 @@ junit_report_files.sort.each do |file|
   next if File.directory?(file)
 
   STDERR.puts "Parsing #{file.sub(junits_dir, '')}"
-  job = File.basename(file)[/#{job_pattern}/, 1]
   xml = File.read(file)
   doc = REXML::Document.new(xml)
 
@@ -30,10 +29,10 @@ junit_report_files.sort.each do |file|
     name = testcase.attributes['name'].to_s
     classname = testcase.attributes['classname'].to_s
     testcase.elements.each("failure") do |failure|
-      failures << Failure.new(name, classname, failure.text, job, :failure)
+      failures << Failure.new(name, classname, failure.text, job_id, :failure)
     end
     testcase.elements.each("error") do |error|
-      failures << Failure.new(name, classname, error.text, job, :error)
+      failures << Failure.new(name, classname, error.text, job_id, :error)
     end
   end
 end
@@ -52,18 +51,20 @@ STDERR.puts "--- ✍️ Preparing annotation"
 failures_count = failures.select {|f| f.type == :failure }.length
 errors_count = failures.select {|f| f.type == :error }.length
 
-puts [
+error_string = [
   failures_count == 0 ? nil : (failures_count == 1 ? "1 failure" : "#{failures_count} failures"),
   errors_count === 0 ? nil : (errors_count == 1 ? "1 error" : "#{errors_count} errors"),
-].compact.join(" and ") + ":\n\n"
+].compact.join(" and ")
 
-failures.each do |failure|
-  puts "<details>"
-  puts "<summary><code>#{failure.name} in #{failure.classname}</code></summary>\n\n"
-  puts "<code><pre>#{failure.body.chomp.strip}</pre></code>\n\n"
-  if failure.job
-    puts "in <a href=\"##{failure.job}\">Job ##{failure.job}</a>"
+puts "<h3>#{job_name} - (#{error_string})</h3>\n\n"
+failures.group_by {|v| v.classname }.each do |classname, failures|
+  puts "<h5><strong>#{classname}</strong></h5>\n\n"
+  failures.each do |failure|
+    puts "<details>"
+    puts "<summary><code>#{failure.name}</code></summary>\n\n"
+    puts "<code><pre>#{failure.body.chomp.strip}</pre></code>\n\n"
+    puts "</details>\n"
   end
-  puts "</details>"
-  puts "" unless failure == failures.last
+  puts "\n\n"
 end
+puts "\n\n"

@@ -1,0 +1,46 @@
+#!/bin/bash
+
+set -euo pipefail
+
+PLUGIN_DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)/.."
+
+echo "--- :junit: Obtaining the junit reports"
+
+reports_selector=${BUILDKITE_PLUGIN_JUNIT_STEP_ANNOTATE_REPORTS_SELECTOR}
+reports_dir="$(pwd)/$(mktemp -d "junit-step-annotate-plugin-reports-tmp.XXXXXXXXXX")"
+annotation_dir="$(pwd)/$(mktemp -d "junit-step-annotate-plugin-annotation-tmp.XXXXXXXXXX")"
+annotation_path="${annotation_dir}/annotation.md"
+
+function cleanup {
+  rm -rf "${reports_dir}"
+  rm -rf "${annotation_dir}"
+}
+
+trap cleanup EXIT
+
+for file in $reports_selector; do
+  if [ -e "$file" ]; then
+    cp -r "$file" "$reports_dir";
+  fi
+done
+
+echo "--- :junit: Processing the junits"
+
+docker \
+  --log-level "error" \
+  run \
+    --rm \
+    --volume "$reports_dir:/junits" \
+    --volume "$PLUGIN_DIR/ruby:/src" \
+    -e BUILDKITE_JOB_ID=$BUILDKITE_JOB_ID \
+    -e BUILDKITE_LABEL="$BUILDKITE_LABEL" \
+    ruby:2.5-alpine /src/bin/annotate /junits \
+      > "$annotation_path"
+
+cat "$annotation_path"
+
+if grep -q "<details>" "$annotation_path"; then
+  echo "--- :buildkite: Creating annotation"
+  # shellcheck disable=SC2002
+  cat "$annotation_path" | buildkite-agent annotate --job $BUILDKITE_JOB_ID --append --context junit --style error
+fi
