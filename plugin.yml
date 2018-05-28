@@ -5,8 +5,9 @@ requirements:
   - docker
 configuration:
   properties:
-    reports-selector:
+    reports-paths:
       type: string
+      type: array
   required:
-    - reports-selector
+    - reports-paths
   additionalProperties: false
