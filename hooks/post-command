@@ -61,6 +61,8 @@ if grep -q "<details>" "$annotation_path"; then
   echo "--- :buildkite: Creating annotation"
   # shellcheck disable=SC2002
   cat "$annotation_path" | buildkite-agent annotate --job $BUILDKITE_JOB_ID --context "$BUILDKITE_LABEL" --style error
+elif [ "${BUILDKITE_COMMAND_EXIT_STATUS:-0}" -ne 0 ]; then
+  buildkite-agent annotate "$BUILDKITE_LABEL completed with an error!" --job $BUILDKITE_JOB_ID --context "$BUILDKITE_LABEL" --style error
 else
   buildkite-agent annotate "$BUILDKITE_LABEL completed with success!" --job $BUILDKITE_JOB_ID --context "$BUILDKITE_LABEL" --style success
 fi
