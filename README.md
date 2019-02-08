@@ -14,8 +14,8 @@ steps:
   - wait: ~
     continue_on_failure: true
   - plugins:
-      junit-annotate#v1.2.0:
-        artifacts: tmp/junit-*.xml
+      - junit-annotate#v1.2.0:
+          artifacts: tmp/junit-*.xml
 ```
 
 ## Configuration
